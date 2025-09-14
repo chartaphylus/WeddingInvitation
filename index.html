@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sima & Igneel - Wedding Invitation</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-content">
+            <div class="logo">S&I</div>
+            <p>Loading...</p>
+        </div>
+    </div>
+
+    <!-- Music Player -->
+    <!-- 🎶 Tombol Musik -->
+  <button id="musicBtn" class="music-btn" aria-label="Play Music">
+    <!-- Ikon Play -->
+    <svg id="iconPlay" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+      <path d="M8 5v14l11-7z"/>
+    </svg>
+    <!-- Ikon Pause (disembunyikan dulu) -->
+    <svg id="iconPause" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="display:none">
+      <path d="M6 19h4V5H6zm8-14v14h4V5h-4z"/>
+    </svg>
+  </button>
+
+  <!-- 🎶 Audio -->
+  <audio id="weddingMusic" loop>
+    <source src="music/wedding-song.mp3" type="audio/mp3">
+    Browser kamu tidak mendukung audio tag.
+  </audio>
+
+    <!-- Intro Page -->
+    <div class="intro-page" id="introPage">
+        <div class="intro-content">
+            <div class="intro-logo">S&I</div>
+            <h1>Sima & Igneel</h1>
+            <p class="date">20 Desember 2025</p>
+            <button class="enter-button" onclick="enterWebsite()">
+                <span>Open Invitation</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Website -->
+    <div class="main-website" id="mainWebsite">
+        <!-- Navigation -->
+        <nav class="navbar" id="navbar">
+            <div class="nav-container">
+                <a href="#" class="nav-logo">S & I</a>
+                <ul class="nav-links">
+                    <li><a href="#couple">Couple</a></li>
+                    <li><a href="#events">Events</a></li>
+                    <li><a href="#gallery">Gallery</a></li>
+                    <li><a href="#countdown">Countdown</a></li>
+                    <li><a href="#location">Location</a></li>
+                </ul>
+                <div class="mobile-menu" id="mobileMenuBtn">
+                    <i class="fas fa-bars"></i>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Mobile Navigation Menu -->
+        <div class="mobile-nav" id="mobileNav">
+            <div class="mobile-nav-content">
+                <div class="mobile-nav-header">
+                    <span class="mobile-nav-logo">S & I</span>
+                    <button class="mobile-nav-close" id="mobileNavClose">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <ul class="mobile-nav-links">
+                    <li><a href="#couple" onclick="closeMobileNav()">Couple</a></li>
+                    <li><a href="#events" onclick="closeMobileNav()">Events</a></li>
+                    <li><a href="#gallery" onclick="closeMobileNav()">Gallery</a></li>
+                    <li><a href="#countdown" onclick="closeMobileNav()">Countdown</a></li>
+                    <li><a href="#location" onclick="closeMobileNav()">Location</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="hero-content">
+                <p class="hero-subtitle">Wedding Invitation</p>
+                <h1>Sima & Igneel</h1>
+                <p class="hero-date">20 • 12 • 2025</p>
+            </div>
+            <div class="scroll-down" onclick="scrollToSection('couple')">
+                SCROLL
+            </div>
+        </section>
+
+        <!-- Couple Section -->
+        <section class="section couple" id="couple">
+            <div class="container">
+                <div class="section-header">
+                    <p class="section-subtitle">Get to know</p>
+                    <h2 class="section-title">The Couple</h2>
+                    <p class="section-description">
+                        Dua hati yang bersatu dalam cinta, siap memulai perjalanan baru sebagai suami istri.
+                    </p>
+                </div>
+                <div class="couple-grid">
+                    <div class="couple-card">
+                        <div class="couple-image">
+                            <img src="images/bride.jpg" alt="Sarah Michelle" class="couple-photo">
+                            <span class="initial">S</span>
+                        </div>
+                        <h3 class="couple-name">Sima Kurima</h3>
+                        <p class="couple-title">The Bride</p>
+                        <p class="couple-description">
+                            Putri dari Bapak Rain Kurima & Ibu Rin Kurima. 
+                            Seorang arsitek yang passionate dengan desain berkelanjutan dan cinta pada alam.
+                        </p>
+                    </div>
+                    <div class="couple-card">
+                        <div class="couple-image">
+                            <img src="images/groom.jpg" alt="David Alexander" class="couple-photo">
+                            <span class="initial">I</span>
+                        </div>
+                        <h3 class="couple-name">Igneel Hazenlrick</h3>
+                        <p class="couple-title">The Groom</p>
+                        <p class="couple-description">
+                            Putra dari Bapak William Hazenlrick & Ibu Elizabeth Hazenlrick. 
+                            Seorang photographer dan filmmaker yang mengabadikan momen-momen berharga dalam hidup.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Events Section -->
+        <section class="section events" id="events">
+            <div class="container">
+                <div class="section-header">
+                    <p class="section-subtitle">Join us</p>
+                    <h2 class="section-title">Wedding Events</h2>
+                    <p class="section-description">
+                        Kami mengundang Anda untuk berbagi kebahagiaan di hari istimewa kami.
+                    </p>
+                </div>
+                <div class="events-grid">
+                    <div class="event-card">
+                        <i class="fas fa-mosque event-icon"></i>
+                        <h3 class="event-title">Reception</h3>
+                        <p class="event-time">11:00 AM</p>
+                        <div class="event-venue">
+                            <strong>Konashidaira Camping Retreat</strong>
+                            <p class="event-address">
+                                上高地-4468 Azumi, Matsumoto<br>
+                                Nagano 390-1520, Jepang
+                            </p>
+                        </div>
+                    </div>
+                    <div class="event-card">
+                        <i class="fas fa-glass-cheers event-icon"></i>
+                        <h3 class="event-title">Wedding</h3>
+                        <p class="event-time">7:00 PM</p>
+                        <div class="event-venue">
+                            <strong>The NOMAD Mt. Yatsugatake</strong>
+                            <p class="event-address">
+                                8599 Oizumicho Yato, Hokuto<br>
+                                Yamanashi 409-1502, Jepang
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Gallery Section with Auto Slider -->
+        <section class="section gallery" id="gallery">
+            <div class="container">
+                <div class="section-header">
+                    <p class="section-subtitle">Our moments</p>
+                    <h2 class="section-title">Gallery</h2>
+                    <p class="section-description">
+                        Koleksi momen indah perjalanan cinta kami.
+                    </p>
+                </div>
+                
+                <!-- Auto Gallery Slider -->
+                <div class="gallery-slider">
+                    <div class="slider-container" id="gallerySlider">
+                        <div class="slider-item active">
+                            <img src="images/gallery/slide-1.jpg" alt="Wedding Photo 1" class="slider-image focus-top">
+                        </div>
+                        <div class="slider-item">
+                            <img src="images/gallery/slide-2.jpg" alt="Wedding Photo 1" class="slider-image focus-top">
+                        </div>
+                        <div class="slider-item">
+                            <img src="images/gallery/slide-3.jpg" alt="Wedding Photo 1" class="slider-image focus-top">
+                        </div>
+                        <div class="slider-item">
+                            <img src="images/gallery/slide-4.jpg" alt="Wedding Photo 1" class="slider-image focus-top">
+                        </div>
+                        <div class="slider-item">
+                            <img src="images/gallery/slide-5.jpg" alt="Wedding Photo 1" class="slider-image focus-top">
+                        </div>
+                        <div class="slider-item">
+                            <img src="images/gallery/slide-6.jpg" alt="Wedding Photo 1" class="slider-image focus-top">
+                        </div>
+                    </div>
+                    <div class="slider-dots" id="sliderDots">
+                        <span class="slider-dot active" onclick="goToSlide(0)"></span>
+                        <span class="slider-dot" onclick="goToSlide(1)"></span>
+                        <span class="slider-dot" onclick="goToSlide(2)"></span>
+                        <span class="slider-dot" onclick="goToSlide(3)"></span>
+                        <span class="slider-dot" onclick="goToSlide(4)"></span>
+                        <span class="slider-dot" onclick="goToSlide(5)"></span>
+                    </div>
+                </div>
+
+                <!-- Gallery Grid -->
+                <div class="gallery-grid">
+                    <div class="gallery-item" onclick="goToSlide(0)">
+                        <img src="images/gallery/gallery-1.jpg" alt="Gallery Photo 1" class="gallery-image">
+                    </div>
+                    <div class="gallery-item" onclick="goToSlide(1)">
+                        <img src="images/gallery/gallery-2.jpg" alt="Gallery Photo 1" class="gallery-image">
+                    </div>
+                    <div class="gallery-item" onclick="goToSlide(2)">
+                        <img src="images/gallery/gallery-3.jpg" alt="Gallery Photo 1" class="gallery-image">
+                    </div>
+                    <div class="gallery-item" onclick="goToSlide(3)">
+                        <img src="images/gallery/gallery-4.jpg" alt="Gallery Photo 1" class="gallery-image">
+                    </div>
+                    <div class="gallery-item" onclick="goToSlide(4)">
+                        <img src="images/gallery/gallery-5.jpg" alt="Gallery Photo 1" class="gallery-image">
+                    </div>
+                    <div class="gallery-item" onclick="goToSlide(5)">
+                        <img src="images/gallery/gallery-6.jpg" alt="Gallery Photo 1" class="gallery-image">
+                    </div>
+                    <div class="gallery-item" onclick="goToSlide(6)">
+                        <img src="images/gallery/gallery-7.jpg" alt="Gallery Photo 1" class="gallery-image">
+                    </div>
+                    <div class="gallery-item" onclick="goToSlide(7)">
+                        <img src="images/gallery/gallery-8.jpg" alt="Gallery Photo 1" class="gallery-image">
+                    </div>
+                    <div class="gallery-item" onclick="goToSlide(8)">
+                        <img src="images/gallery/gallery-9.jpg" alt="Gallery Photo 1" class="gallery-image">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Countdown Section -->
+        <section class="section countdown" id="countdown">
+            <div class="container">
+                <div class="section-header">
+                    <p class="section-subtitle">Save the date</p>
+                    <h2 class="section-title">Countdown</h2>
+                    <p class="section-description">
+                        Hitung mundur menuju hari bahagia kami.
+                    </p>
+                </div>
+                <div class="countdown-timer" id="countdownTimer">
+                    <div class="countdown-item">
+                        <span class="countdown-number" id="days">00</span>
+                        <span class="countdown-label">Days</span>
+                    </div>
+                    <div class="countdown-item">
+                        <span class="countdown-number" id="hours">00</span>
+                        <span class="countdown-label">Hours</span>
+                    </div>
+                    <div class="countdown-item">
+                        <span class="countdown-number" id="minutes">00</span>
+                        <span class="countdown-label">Minutes</span>
+                    </div>
+                    <div class="countdown-item">
+                        <span class="countdown-number" id="seconds">00</span>
+                        <span class="countdown-label">Seconds</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Location Section -->
+        <section class="section location" id="location">
+            <div class="container">
+                <div class="section-header">
+                    <p class="section-subtitle">Find us</p>
+                    <h2 class="section-title">Wedding Location</h2>
+                    <p class="section-description">
+                        Informasi lengkap lokasi dan waktu acara pernikahan kami.
+                    </p>
+                </div>
+                <div class="location-grid">
+                    <div class="location-info">
+                        <div class="location-card">
+                            <h3 class="location-title">Reception</h3>
+                            <p class="location-venue">Konashidaira Camping Retreat</p>
+                            <p class="location-address">
+                                上高地-4468 Azumi, Matsumoto<br>
+                                Nagano 390-1520<br>
+                                Jepang
+                            </p>
+                            <p class="location-time">
+                                <i class="fas fa-clock"></i> 11:00 AM - 12:00 PM
+                            </p>
+                        </div>
+                        <div class="location-card">
+                            <h3 class="location-title">Wedding</h3>
+                            <p class="location-venue">The NOMAD Mt. Yatsugatake</p>
+                            <p class="location-address">
+                                8599 Oizumicho Yato, Hokuto<br>
+                                Yamanashi 409-1502<br>
+                                Jepang
+                            </p>
+                            <p class="location-time">
+                                <i class="fas fa-clock"></i> 7:00 PM - 10:00 PM
+                            </p>
+                        </div>
+                    </div>
+                    <div class="map-container">
+                        <div id="map" class="interactive-map"></div>
+                        <span class="map-placeholder fallback"><i class="fas fa-map-marker-alt"></i></span>
+                        <div class="map-overlay">Nagasaki, Jepang</div>
+                        <!-- Button untuk membuka Google Maps -->
+                        <div class="map-buttons">
+                            <a href="https://maps.app.goo.gl/5aWL4LxuCJ8kdExb6" 
+                               target="_blank" 
+                               class="map-button">
+                                <i class="fas fa-mosque"></i>
+                                Reception
+                            </a>
+                            <a href="https://maps.app.goo.gl/f6DqNb6p1xZvhxrUA" 
+                               target="_blank" 
+                               class="map-button">
+                                <i class="fas fa-glass-cheers"></i>
+                                Wedding
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="container">
+                <div class="footer-content">
+                    <div class="footer-logo">S&I</div>
+                    <p>Thank you for being part of our special day</p>
+                    <p class="date">Sima & Igneel • 20 December 2025</p>
+                    <p>With love and gratitude</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
