@@ -1,773 +1,667 @@
-// Global Variables
+const DATA = window.WeddingData || {};
+
 let currentSlideIndex = 0;
-let slides, dots, totalSlides, slideInterval;
+let slides = [];
+let dots = [];
+let totalSlides = 0;
+let slideInterval;
 let countdownInterval;
 let scrollToTopButton;
+let galleryImages = DATA.images?.gallery || [];
+let isPlaying = false;
+let parallaxFrame = null;
+const parallaxState = new WeakMap();
 
-// music player
-const musicBtn = document.getElementById("musicBtn");
-    const weddingMusic = document.getElementById("weddingMusic");
-    const iconPlay = document.getElementById("iconPlay");
-    const iconPause = document.getElementById("iconPause");
-    let isPlaying = false;
+const musicBtn = document.getElementById('musicBtn');
+const weddingMusic = document.getElementById('weddingMusic');
+const iconPlay = document.getElementById('iconPlay');
+const iconPause = document.getElementById('iconPause');
 
-    musicBtn.addEventListener("click", () => {
-      if (isPlaying) {
-        weddingMusic.pause();
-        iconPause.style.display = "none";
-        iconPlay.style.display = "block";
-      } else {
-        weddingMusic.play()
-          .then(() => {
-            iconPlay.style.display = "none";
-            iconPause.style.display = "block";
-          })
-          .catch(err => {
-            console.log("Error play musik:", err);
-          });
-      }
-      isPlaying = !isPlaying;
-    });
-
-// DOM Content Loaded Event
 document.addEventListener('DOMContentLoaded', function() {
+    applyWeddingData();
+    initMusic();
     initEventListeners();
     initMobileMenu();
+    initLazyLoading();
+    initAccessibility();
+    tryAutoPlayMusic();
 });
 
-// Window Load Event
 window.addEventListener('load', function() {
     handleLoadingScreen();
-    createParticles();
+    initParallax();
+    tryAutoPlayMusic();
 });
 
-// Loading Screen Handler
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
+function setText(selector, value) {
+    document.querySelectorAll(selector).forEach(element => {
+        element.textContent = value;
+    });
+}
+
+function setBackgroundImage(selector, imageUrl, overlay = '') {
+    const element = document.querySelector(selector);
+    if (!element || !imageUrl) return;
+    element.style.backgroundImage = overlay
+        ? `${overlay}, url('${imageUrl}')`
+        : `url('${imageUrl}')`;
+}
+
+function setSingleBackgroundImage(selector, imageUrl) {
+    const element = document.querySelector(selector);
+    if (!element || !imageUrl) return;
+    element.style.backgroundImage = `url('${imageUrl}')`;
+}
+
+function applyWeddingData() {
+    if (!DATA || !Object.keys(DATA).length) return;
+
+    document.title = DATA.siteTitle || document.title;
+    setText('.logo, .intro-logo, .footer-logo', DATA.brand?.initials || 'S&I');
+    setText('.nav-logo, .mobile-nav-logo', DATA.brand?.shortName || 'S & I');
+    setText('.intro-content h1, .hero h1', DATA.brand?.coupleName || 'Sima & Igneel');
+    setText('.intro-content .date', DATA.wedding?.dateText || '');
+    setText('.hero-date', DATA.wedding?.heroDate || '');
+
+    const footerDate = document.querySelector('.footer .date');
+    if (footerDate) {
+        footerDate.textContent = `${DATA.brand?.coupleName || ''} • ${DATA.wedding?.footerDate || ''}`;
+    }
+    setText('.footer-content p:first-of-type', DATA.footer?.thanks || '');
+    setText('.footer-content p:last-of-type', DATA.footer?.closing || '');
+
+    const descriptions = {
+        '#couple .section-description': DATA.sections?.coupleDescription,
+        '#events .section-description': DATA.sections?.eventsDescription,
+        '#gallery .section-description': DATA.sections?.galleryDescription,
+        '#countdown .section-description': DATA.sections?.countdownDescription,
+        '#location .section-description': DATA.sections?.locationDescription
+    };
+
+    Object.entries(descriptions).forEach(([selector, value]) => {
+        if (value) setText(selector, value);
+    });
+
+    setBackgroundImage(
+        '.intro-page',
+        DATA.images?.intro,
+        'linear-gradient(rgba(255, 250, 242, 0.62), rgba(255, 250, 242, 0.86))'
+    );
+    setBackgroundImage(
+        '.hero-bg',
+        DATA.images?.hero,
+        'linear-gradient(90deg, rgba(20, 18, 16, 0.66), rgba(20, 18, 16, 0.24))'
+    );
+    setSingleBackgroundImage('.hero-portrait', DATA.images?.hero);
+    setBackgroundImage(
+        '.countdown-bg',
+        DATA.images?.countdown,
+        'linear-gradient(rgba(35, 32, 29, 0.86), rgba(35, 32, 29, 0.9))'
+    );
+    setBackgroundImage(
+        '.map-bg',
+        DATA.images?.map,
+        'linear-gradient(rgba(35, 32, 29, 0.14), rgba(35, 32, 29, 0.32))'
+    );
+
+    renderCouple();
+    renderEvents();
+    renderGallery();
+    renderLocation();
+    configureAudio();
+}
+
+function renderCouple() {
+    const bride = DATA.couple?.bride;
+    const groom = DATA.couple?.groom;
+    const people = [
+        { data: bride, image: DATA.images?.bride, speed: '0.05' },
+        { data: groom, image: DATA.images?.groom, speed: '-0.04' }
+    ];
+
+    document.querySelectorAll('.couple-card').forEach((card, index) => {
+        const person = people[index];
+        if (!person?.data) return;
+
+        const image = card.querySelector('.couple-photo');
+        const initial = card.querySelector('.initial');
+        const name = card.querySelector('.couple-name');
+        const title = card.querySelector('.couple-title');
+        const description = card.querySelector('.couple-description');
+        const imageWrap = card.querySelector('.couple-image');
+
+        if (image) {
+            image.src = person.image || image.src;
+            image.alt = person.data.name || image.alt;
+        }
+        if (imageWrap) imageWrap.dataset.parallax = person.speed;
+        if (initial) initial.textContent = person.data.initial || '';
+        if (name) name.textContent = person.data.name || '';
+        if (title) title.textContent = person.data.title || '';
+        if (description) {
+            description.textContent = `${person.data.parents || ''} ${person.data.description || ''}`.trim();
+        }
+    });
+}
+
+function renderEvents() {
+    const eventsGrid = document.querySelector('.events-grid');
+    if (!eventsGrid || !Array.isArray(DATA.events)) return;
+
+    eventsGrid.innerHTML = DATA.events.map(event => `
+        <div class="event-card">
+            <i class="${escapeHtml(event.icon || 'fas fa-calendar')} event-icon"></i>
+            <h3 class="event-title">${escapeHtml(event.title)}</h3>
+            <p class="event-time">${escapeHtml(event.time)}</p>
+            <div class="event-venue">
+                <strong>${escapeHtml(event.venue)}</strong>
+                <p class="event-address">${(event.addressLines || []).map(escapeHtml).join('<br>')}</p>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderGallery() {
+    const sliderImages = DATA.images?.slider || [];
+    galleryImages = DATA.images?.gallery || galleryImages;
+
+    const slider = document.getElementById('gallerySlider');
+    const sliderDots = document.getElementById('sliderDots');
+    const galleryGrid = document.getElementById('galleryGrid');
+
+    if (slider && sliderImages.length) {
+        slider.innerHTML = sliderImages.map((src, index) => `
+            <div class="slider-item ${index === 0 ? 'active' : ''}">
+                <img src="${escapeHtml(src)}" alt="Wedding Photo ${index + 1}" class="slider-image">
+            </div>
+        `).join('');
+    }
+
+    if (sliderDots && sliderImages.length) {
+        sliderDots.innerHTML = sliderImages.map((_, index) => `
+            <span class="slider-dot ${index === 0 ? 'active' : ''}" onclick="goToSlide(${index})"></span>
+        `).join('');
+    }
+
+    if (galleryGrid && galleryImages.length) {
+        galleryGrid.innerHTML = galleryImages.map((src, index) => `
+            <div class="gallery-item" onclick="openLightbox(${index})">
+                <img src="${escapeHtml(src)}" alt="Gallery Photo ${index + 1}" class="gallery-image">
+            </div>
+        `).join('');
+    }
+}
+
+function renderLocation() {
+    const locationInfo = document.querySelector('.location-info');
+    const mapButtons = document.querySelector('.map-buttons');
+    const mapOverlay = document.querySelector('.map-overlay');
+
+    if (mapOverlay) mapOverlay.textContent = DATA.locationLabel || '';
+
+    if (locationInfo && Array.isArray(DATA.events)) {
+        locationInfo.innerHTML = DATA.events.map(event => `
+            <div class="location-card">
+                <h3 class="location-title">${escapeHtml(event.title)}</h3>
+                <p class="location-venue">${escapeHtml(event.venue)}</p>
+                <p class="location-address">${(event.addressLines || []).map(escapeHtml).join('<br>')}</p>
+                <p class="location-time"><i class="fas fa-clock"></i>${escapeHtml(event.timeRange || event.time)}</p>
+            </div>
+        `).join('');
+    }
+
+    if (mapButtons && Array.isArray(DATA.events)) {
+        mapButtons.innerHTML = DATA.events.map(event => `
+            <a href="${escapeHtml(event.mapUrl || '#')}" target="_blank" class="map-button">
+                <i class="${escapeHtml(event.icon || 'fas fa-map-marker-alt')}"></i>${escapeHtml(event.title)}
+            </a>
+        `).join('');
+    }
+}
+
+function configureAudio() {
+    if (!weddingMusic || !DATA.audio?.src) return;
+
+    const source = weddingMusic.querySelector('source');
+    if (source && source.src !== DATA.audio.src) {
+        source.src = DATA.audio.src;
+        weddingMusic.load();
+    }
+}
+
+function initMusic() {
+    if (!musicBtn || !weddingMusic) return;
+
+    musicBtn.addEventListener('click', function() {
+        if (isPlaying) {
+            pauseWeddingMusic();
+        } else {
+            playWeddingMusic();
+        }
+    });
+}
+
+function setMusicIcon(playing) {
+    isPlaying = playing;
+    if (iconPause) iconPause.style.display = playing ? 'block' : 'none';
+    if (iconPlay) iconPlay.style.display = playing ? 'none' : 'block';
+}
+
+function playWeddingMusic({ silent = false } = {}) {
+    if (!weddingMusic) return Promise.resolve(false);
+
+    return weddingMusic.play()
+        .then(() => {
+            setMusicIcon(true);
+            return true;
+        })
+        .catch(error => {
+            setMusicIcon(false);
+            if (!silent) console.log('Audio belum bisa autoplay sebelum interaksi user:', error);
+            return false;
+        });
+}
+
+function pauseWeddingMusic() {
+    if (!weddingMusic) return;
+    weddingMusic.pause();
+    setMusicIcon(false);
+}
+
+function tryAutoPlayMusic() {
+    if (DATA.audio?.autoplay === false) return;
+    playWeddingMusic({ silent: true });
+}
+
 function handleLoadingScreen() {
     setTimeout(() => {
         const loadingScreen = document.getElementById('loadingScreen');
-        loadingScreen.classList.add('hidden');
+        if (loadingScreen) loadingScreen.classList.add('is-hidden');
     }, 2000);
 }
 
-// Intro Page Animation
 function enterWebsite() {
     const introPage = document.getElementById('introPage');
     const mainWebsite = document.getElementById('mainWebsite');
     const navbar = document.getElementById('navbar');
-    
-    introPage.classList.add('fade-out');
-    
+
+    if (introPage) introPage.classList.add('fade-out');
+
+    playWeddingMusic({ silent: true });
+
     setTimeout(() => {
-        introPage.style.display = 'none';
-        mainWebsite.classList.add('show');
-        navbar.classList.add('show');
+        if (introPage) introPage.style.display = 'none';
+        if (mainWebsite) mainWebsite.classList.add('show');
+        if (navbar) navbar.classList.add('show');
         initScrollAnimations();
         startSlider();
         startCountdown();
+        handleParallaxEffect();
     }, 1000);
 }
 
-// Initialize Event Listeners
 function initEventListeners() {
-    // Navigation Links
-    const navLinks = document.querySelectorAll('.nav-links a, .mobile-nav-links a');
-    navLinks.forEach(link => {
+    document.querySelectorAll('.nav-links a, .mobile-nav-links a').forEach(link => {
         link.addEventListener('click', function(e) {
             e.preventDefault();
-            const targetId = this.getAttribute('href').substring(1);
-            scrollToSection(targetId);
+            scrollToSection(this.getAttribute('href').substring(1));
         });
     });
 
-    // Scroll Events
-    window.addEventListener('scroll', handleScroll);
-    
-    // Event Cards Animation
-    initEventCardsAnimation();
-    
-    // Location Cards Animation
-    initLocationCardsAnimation();
+    window.addEventListener('scroll', debounce(handleScroll, 16));
+    window.addEventListener('resize', debounce(function() {
+        if (window.innerWidth > 1024) closeMobileNav();
+        handleParallaxEffect();
+    }, 250));
 }
 
-// Scroll Animations
 function initScrollAnimations() {
     const sections = document.querySelectorAll('.section');
-    
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('animate');
-            }
+            if (entry.isIntersecting) entry.target.classList.add('animate');
         });
     }, {
         threshold: 0.1,
         rootMargin: '0px 0px -100px 0px'
     });
 
-    sections.forEach(section => {
-        observer.observe(section);
-    });
+    sections.forEach(section => observer.observe(section));
 }
 
-// Mobile Menu Functions
 function initMobileMenu() {
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
     const mobileNav = document.getElementById('mobileNav');
     const mobileNavClose = document.getElementById('mobileNavClose');
-    
-    if (mobileMenuBtn && mobileNav) {
-        mobileMenuBtn.addEventListener('click', openMobileNav);
-    }
-    
-    if (mobileNavClose) {
-        mobileNavClose.addEventListener('click', closeMobileNav);
-    }
-    
-    // Close on overlay click
+
+    if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', openMobileNav);
+    if (mobileNavClose) mobileNavClose.addEventListener('click', closeMobileNav);
     if (mobileNav) {
         mobileNav.addEventListener('click', function(e) {
-            if (e.target === mobileNav) {
-                closeMobileNav();
-            }
+            if (e.target === mobileNav) closeMobileNav();
         });
     }
 }
 
 function openMobileNav() {
     const mobileNav = document.getElementById('mobileNav');
-    if (mobileNav) {
-        mobileNav.classList.add('show');
-        document.body.style.overflow = 'hidden';
-    }
+    if (!mobileNav) return;
+    mobileNav.classList.add('show');
+    document.body.style.overflow = 'hidden';
 }
 
 function closeMobileNav() {
     const mobileNav = document.getElementById('mobileNav');
-    if (mobileNav) {
-        mobileNav.classList.remove('show');
-        document.body.style.overflow = 'auto';
-    }
+    if (!mobileNav) return;
+    mobileNav.classList.remove('show');
+    document.body.style.overflow = 'auto';
 }
 
-// Gallery Slider Functions
 function initSlider() {
-    slides = document.querySelectorAll('.slider-item');
-    dots = document.querySelectorAll('.slider-dot');
-    totalSlides = slides ? slides.length : 0;
+    slides = Array.from(document.querySelectorAll('.slider-item'));
+    dots = Array.from(document.querySelectorAll('.slider-dot'));
+    totalSlides = slides.length;
 }
 
 function showSlide(index) {
-    if (!slides || !dots || totalSlides === 0) return;
-    
-    // Ensure index is within bounds
+    if (!totalSlides) return;
     if (index < 0) index = totalSlides - 1;
     if (index >= totalSlides) index = 0;
-    
-    // Remove active class from all
+
     slides.forEach(slide => slide.classList.remove('active'));
     dots.forEach(dot => dot.classList.remove('active'));
-    
-    // Add active class to current
-    if (slides[index]) slides[index].classList.add('active');
-    if (dots[index]) dots[index].classList.add('active');
-    
+    slides[index]?.classList.add('active');
+    dots[index]?.classList.add('active');
     currentSlideIndex = index;
 }
 
 function nextSlide() {
-    currentSlideIndex = (currentSlideIndex + 1) % totalSlides;
-    showSlide(currentSlideIndex);
+    showSlide((currentSlideIndex + 1) % totalSlides);
+}
+
+function prevSlide() {
+    showSlide((currentSlideIndex - 1 + totalSlides) % totalSlides);
 }
 
 function goToSlide(index) {
-    if (index < 0 || index >= totalSlides) return;
-    
-    currentSlideIndex = index;
-    showSlide(currentSlideIndex);
-    
-    // Scroll to slider if clicked from grid
-    const gallerySlider = document.querySelector('.gallery-slider');
-    if (gallerySlider) {
-        gallerySlider.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center'
-        });
-    }
+    initSlider();
+    if (!totalSlides) return;
+    showSlide(index);
+
+    document.querySelector('.gallery-slider')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+    });
 }
 
 function startSlider() {
     initSlider();
-    if (totalSlides > 0) {
-        // Clear any existing interval
-        if (slideInterval) {
-            clearInterval(slideInterval);
-        }
-        // Auto-play every 4 seconds
-        slideInterval = setInterval(nextSlide, 4000);
-    }
+    if (!totalSlides) return;
+    clearInterval(slideInterval);
+    slideInterval = setInterval(nextSlide, 4000);
 }
 
-// Countdown Timer Functions
 function startCountdown() {
-    // Set wedding date (example: December 20, 2025 11:00:00)
-    const weddingDate = new Date('December 20, 2025 11:00:00').getTime();
-    
+    const weddingDate = new Date(DATA.wedding?.countdownDate || 'December 20, 2025 11:00:00').getTime();
+
     function updateCountdown() {
-        const now = new Date().getTime();   
-        const timeLeft = weddingDate - now;
-        
-        const daysElement = document.getElementById('days');
-        const hoursElement = document.getElementById('hours');
-        const minutesElement = document.getElementById('minutes');
-        const secondsElement = document.getElementById('seconds');
-        
-        if (!daysElement || !hoursElement || !minutesElement || !secondsElement) {
-            return;
-        }
-        
-        if (timeLeft > 0) {
-            const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
-            
-            daysElement.textContent = days.toString().padStart(2, '0');
-            hoursElement.textContent = hours.toString().padStart(2, '0');
-            minutesElement.textContent = minutes.toString().padStart(2, '0');
-            secondsElement.textContent = seconds.toString().padStart(2, '0');
-        } else {
-            // Wedding day has arrived
-            daysElement.textContent = '00';
-            hoursElement.textContent = '00';
-            minutesElement.textContent = '00';
-            secondsElement.textContent = '00';
-        }
+        const timeLeft = weddingDate - Date.now();
+        const values = timeLeft > 0
+            ? {
+                days: Math.floor(timeLeft / (1000 * 60 * 60 * 24)),
+                hours: Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+                minutes: Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60)),
+                seconds: Math.floor((timeLeft % (1000 * 60)) / 1000)
+            }
+            : { days: 0, hours: 0, minutes: 0, seconds: 0 };
+
+        Object.entries(values).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) element.textContent = String(value).padStart(2, '0');
+        });
     }
-    
-    // Clear any existing interval
-    if (countdownInterval) {
-        clearInterval(countdownInterval);
-    }
-    
-    // Update immediately and then every second
+
+    clearInterval(countdownInterval);
     updateCountdown();
     countdownInterval = setInterval(updateCountdown, 1000);
 }
 
-// Smooth Scrolling
 function scrollToSection(sectionId) {
-    const section = document.getElementById(sectionId);
-    if (section) {
-        section.scrollIntoView({
-            behavior: 'smooth',
-            block: 'start'
-        });
-    }
+    document.getElementById(sectionId)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+    });
 }
 
-// Handle Scroll Events
 function handleScroll() {
     handleNavbarScroll();
     handleParallaxEffect();
     handleScrollToTop();
 }
 
-// Navbar Scroll Effect
 function handleNavbarScroll() {
     const navbar = document.getElementById('navbar');
     if (!navbar) return;
-    
+
     if (window.scrollY > 100) {
-        navbar.style.background = 'rgba(255, 255, 255, 0.98)';
-        navbar.style.boxShadow = '0 2px 20px rgba(0, 0, 0, 0.1)';
+        navbar.style.background = 'rgba(255, 250, 242, 0.96)';
+        navbar.style.boxShadow = '0 12px 36px rgba(35, 32, 29, 0.08)';
     } else {
-        navbar.style.background = 'rgba(255, 255, 255, 0.95)';
+        navbar.style.background = 'rgba(255, 250, 242, 0.82)';
         navbar.style.boxShadow = 'none';
     }
 }
 
-// Parallax Effect
-function handleParallaxEffect() {
-    const scrolled = window.pageYOffset;
-    const hero = document.querySelector('.hero');
-    
-    if (hero && scrolled < window.innerHeight) {
-        hero.style.transform = `translateY(${scrolled * 0.5}px)`;
-    }
+function initParallax() {
+    updateParallaxTargets();
+    if (parallaxFrame) return;
+    animateParallax();
 }
 
-// Scroll to Top Button
+function handleParallaxEffect() {
+    updateParallaxTargets();
+}
+
+function updateParallaxTargets() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    document.querySelectorAll('[data-parallax]').forEach(item => {
+        const speed = parseFloat(item.dataset.parallax || '0');
+        const rect = item.getBoundingClientRect();
+        if (rect.bottom < -120 || rect.top > viewportHeight + 120) return;
+
+        const distanceFromCenter = rect.top + rect.height / 2 - viewportHeight / 2;
+        const multiplier = item.classList.contains('parallax-layer') ? 0.7 : 0.45;
+        const maxMove = item.classList.contains('parallax-layer') ? 42 : 14;
+        const target = Math.max(-maxMove, Math.min(maxMove, distanceFromCenter * speed * multiplier));
+        const state = parallaxState.get(item) || { current: target, target };
+        state.target = target;
+        parallaxState.set(item, state);
+    });
+}
+
+function animateParallax() {
+    document.querySelectorAll('[data-parallax]').forEach(item => {
+        const state = parallaxState.get(item);
+        if (!state) return;
+
+        state.current += (state.target - state.current) * 0.055;
+        const y = Math.round(state.current * 100) / 100;
+        item.style.transform = `translate3d(0, ${y}px, 0)`;
+    });
+
+    parallaxFrame = requestAnimationFrame(animateParallax);
+}
+
 function handleScrollToTop() {
-    if (!scrollToTopButton) {
-        createScrollToTopButton();
-    }
-    
-    if (window.pageYOffset > 300) {
-        scrollToTopButton.classList.add('show');
-    } else {
-        scrollToTopButton.classList.remove('show');
-    }
+    if (!scrollToTopButton) createScrollToTopButton();
+    scrollToTopButton.classList.toggle('show', window.pageYOffset > 300);
 }
 
 function createScrollToTopButton() {
     scrollToTopButton = document.createElement('button');
     scrollToTopButton.innerHTML = '<i class="fas fa-arrow-up"></i>';
     scrollToTopButton.className = 'scroll-to-top';
-    
     scrollToTopButton.addEventListener('click', function() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     });
-    
     document.body.appendChild(scrollToTopButton);
 }
 
-// Event Cards Animation
-function initEventCardsAnimation() {
-    const eventCards = document.querySelectorAll('.event-card');
-    
-    eventCards.forEach(card => {
-        card.addEventListener('mouseenter', function() {
-            this.style.transform = 'translateY(-10px) scale(1.02)';
-        });
-        
-        card.addEventListener('mouseleave', function() {
-            this.style.transform = 'translateY(0) scale(1)';
-        });
+function ensureLightbox() {
+    let lightbox = document.getElementById('lightbox');
+    if (lightbox) return lightbox;
+
+    lightbox = document.createElement('div');
+    lightbox.id = 'lightbox';
+    lightbox.className = 'lightbox';
+    lightbox.innerHTML = `
+        <div class="lightbox-content">
+            <button class="lightbox-close" type="button" aria-label="Close gallery">&times;</button>
+            <button class="lightbox-arrow lightbox-prev" type="button" aria-label="Previous image"><i class="fas fa-chevron-left"></i></button>
+            <img id="lightbox-image" src="" alt="Wedding gallery preview">
+            <button class="lightbox-arrow lightbox-next" type="button" aria-label="Next image"><i class="fas fa-chevron-right"></i></button>
+        </div>
+    `;
+
+    lightbox.querySelector('.lightbox-close').addEventListener('click', closeLightbox);
+    lightbox.querySelector('.lightbox-prev').addEventListener('click', lightboxPrev);
+    lightbox.querySelector('.lightbox-next').addEventListener('click', lightboxNext);
+    lightbox.addEventListener('click', e => {
+        if (e.target === lightbox) closeLightbox();
     });
+    lightbox.addEventListener('touchstart', e => {
+        lightboxTouchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+    lightbox.addEventListener('touchend', e => {
+        lightboxTouchEndX = e.changedTouches[0].screenX;
+        handleLightboxSwipe();
+    }, { passive: true });
+    document.body.appendChild(lightbox);
+    return lightbox;
 }
 
-// Location Cards Animation
-function initLocationCardsAnimation() {
-    const locationCards = document.querySelectorAll('.location-card');
-    
-    locationCards.forEach((card, index) => {
-        card.style.animationDelay = `${index * 0.2}s`;
-    });
+function openLightbox(index) {
+    if (!galleryImages.length) return;
+    if (index < 0) index = galleryImages.length - 1;
+    if (index >= galleryImages.length) index = index % galleryImages.length;
+
+    currentSlideIndex = index;
+    const lightbox = ensureLightbox();
+    const image = document.getElementById('lightbox-image');
+    if (image) {
+        image.src = galleryImages[index];
+        image.alt = `Wedding gallery photo ${index + 1}`;
+    }
+    lightbox.classList.add('show');
+    document.body.style.overflow = 'hidden';
 }
 
-// Floating Particles Effect
-function createParticles() {
-    const hero = document.querySelector('.hero');
-    if (!hero) return;
-    
-    const particleCount = window.innerWidth < 768 ? 30 : 50;
-    
-    for (let i = 0; i < particleCount; i++) {
-        const particle = document.createElement('div');
-        particle.style.cssText = `
-            position: absolute;
-            width: 2px;
-            height: 2px;
-            background: rgba(201, 170, 124, 0.3);
-            border-radius: 50%;
-            left: ${Math.random() * 100}%;
-            top: ${Math.random() * 100}%;
-            animation: float ${3 + Math.random() * 4}s ease-in-out infinite;
-            animation-delay: ${Math.random() * 2}s;
-            pointer-events: none;
-        `;
-        hero.appendChild(particle);
-    }
-}
-
-// Utility Functions
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-// Optimized scroll handler
-window.addEventListener('scroll', debounce(handleScroll, 16));
-
-// Handle window resize
-window.addEventListener('resize', debounce(function() {
-    // Close mobile menu on resize
-    if (window.innerWidth > 1024) {
-        closeMobileNav();
-    }
-}, 250));
-
-// Handle visibility change (pause/resume animations when tab is not visible)
-document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'visible') {
-        // Resume animations
-        if (totalSlides > 0 && !slideInterval) {
-            slideInterval = setInterval(nextSlide, 4000);
-        }
-        if (!countdownInterval) {
-            startCountdown();
-        }
-    } else {
-        // Pause animations
-        if (slideInterval) {
-            clearInterval(slideInterval);
-            slideInterval = null;
-        }
-        if (countdownInterval) {
-            clearInterval(countdownInterval);
-            countdownInterval = null;
-        }
-    }
-});
-
-// Handle keyboard navigation
-document.addEventListener('keydown', function(e) {
-    // Close mobile menu with Escape key
-    if (e.key === 'Escape') {
-        closeMobileNav();
-        closeLightbox();
-    }
-    
-    // Navigate gallery with arrow keys
-    if (e.key === 'ArrowLeft' && totalSlides > 0) {
-        goToSlide((currentSlideIndex - 1 + totalSlides) % totalSlides);
-    }
-    
-    if (e.key === 'ArrowRight' && totalSlides > 0) {
-        goToSlide((currentSlideIndex + 1) % totalSlides);
-    }
-    
-    // Navigate lightbox with arrow keys
+function closeLightbox() {
     const lightbox = document.getElementById('lightbox');
-    if (lightbox && lightbox.classList.contains('show')) {
-        if (e.key === 'ArrowLeft') {
-            lightboxPrev();
-        }
-        if (e.key === 'ArrowRight') {
-            lightboxNext();
-        }
-    }
-});
+    if (!lightbox) return;
+    lightbox.classList.remove('show');
+    document.body.style.overflow = 'auto';
+}
 
-// Enhanced Touch Events for Lightbox
+function lightboxNext() {
+    openLightbox((currentSlideIndex + 1) % galleryImages.length);
+}
+
+function lightboxPrev() {
+    openLightbox((currentSlideIndex - 1 + galleryImages.length) % galleryImages.length);
+}
+
 let lightboxTouchStartX = 0;
 let lightboxTouchEndX = 0;
 
-function handleLightboxTouchStart(e) {
-    lightboxTouchStartX = e.changedTouches[0].screenX;
-}
-
-function handleLightboxTouchEnd(e) {
-    lightboxTouchEndX = e.changedTouches[0].screenX;
-    handleLightboxSwipe();
-}
-
 function handleLightboxSwipe() {
-    const swipeThreshold = 50;
     const swipeDistance = lightboxTouchStartX - lightboxTouchEndX;
-    
-    if (Math.abs(swipeDistance) > swipeThreshold) {
-        if (swipeDistance > 0) {
-            lightboxNext();
-        } else {
-            lightboxPrev();
-        }
-    }
+    if (Math.abs(swipeDistance) <= 50) return;
+    swipeDistance > 0 ? lightboxNext() : lightboxPrev();
 }
 
-// Add lightbox touch events
-document.addEventListener('DOMContentLoaded', function() {
-    const lightbox = document.getElementById('lightbox');
-    if (lightbox) {
-        lightbox.addEventListener('touchstart', handleLightboxTouchStart, { passive: true });
-        lightbox.addEventListener('touchend', handleLightboxTouchEnd, { passive: true });
-        
-        // Close lightbox on background click
-        lightbox.addEventListener('click', function(e) {
-            if (e.target === lightbox) {
-                closeLightbox();
-            }
-        });
-    }
-});
+let touchStartX = 0;
+let touchEndX = 0;
 
-// Dynamic Gallery Loading Function
+function initGalleryTouch() {
+    const gallerySlider = document.querySelector('.gallery-slider');
+    if (!gallerySlider) return;
+    gallerySlider.addEventListener('touchstart', e => {
+        touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+    gallerySlider.addEventListener('touchend', e => {
+        touchEndX = e.changedTouches[0].screenX;
+        const swipeDistance = touchStartX - touchEndX;
+        if (Math.abs(swipeDistance) <= 50 || !totalSlides) return;
+        swipeDistance > 0 ? nextSlide() : prevSlide();
+    }, { passive: true });
+}
+
 function addGalleryImage(imageSrc, altText) {
     const galleryGrid = document.getElementById('galleryGrid');
     if (!galleryGrid) return;
-    
+
     const index = galleryImages.length;
-    galleryImages.push({ src: imageSrc, alt: altText || `Gallery Photo ${index + 1}` });
-    
+    galleryImages.push(imageSrc);
+
     const galleryItem = document.createElement('div');
     galleryItem.className = 'gallery-item';
     galleryItem.setAttribute('onclick', `openLightbox(${index})`);
-    galleryItem.setAttribute('data-image', imageSrc);
-    
-    galleryItem.innerHTML = `
-        <img src="${imageSrc}" alt="${altText || `Gallery Photo ${index + 1}`}" class="gallery-image">
-        <span class="gallery-placeholder fallback"><i class="fas fa-image"></i></span>
-        <div class="gallery-overlay">
-            <i class="fas fa-search-plus"></i>
-        </div>
-    `;
-    
-    // Add image error handler
-    const img = galleryItem.querySelector('.gallery-image');
-    img.addEventListener('error', function() {
-        this.classList.add('error');
-    });
-    img.addEventListener('load', function() {
-        this.classList.remove('error');
-    });
-    
+    galleryItem.innerHTML = `<img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(altText || `Gallery Photo ${index + 1}`)}" class="gallery-image">`;
     galleryGrid.appendChild(galleryItem);
-    
-    // Update lightbox total count
-    const totalElement = document.getElementById('lightbox-total');
-    if (totalElement) {
-        totalElement.textContent = galleryImages.length;
-    }
 }
 
-// Function to update map links
-function updateMapLinks(ceremonyLink, receptionLink) {
+function updateMapLinks(firstLink, secondLink) {
     const mapButtons = document.querySelectorAll('.map-button');
-    if (mapButtons.length >= 2) {
-        mapButtons[0].href = ceremonyLink || '#';
-        mapButtons[1].href = receptionLink || '#';
-    }
+    if (mapButtons[0]) mapButtons[0].href = firstLink || '#';
+    if (mapButtons[1]) mapButtons[1].href = secondLink || '#';
 }
 
-// Function to update couple photos
 function updateCouplePhoto(bridePhotoSrc, groomPhotoSrc) {
     const couplePhotos = document.querySelectorAll('.couple-photo');
-    if (couplePhotos.length >= 2) {
-        if (bridePhotoSrc) couplePhotos[0].src = bridePhotoSrc;
-        if (groomPhotoSrc) couplePhotos[1].src = groomPhotoSrc;
-    }
+    if (couplePhotos[0] && bridePhotoSrc) couplePhotos[0].src = bridePhotoSrc;
+    if (couplePhotos[1] && groomPhotoSrc) couplePhotos[1].src = groomPhotoSrc;
 }
 
-// Enhanced Error Handling
-function handleImageError(img, fallbackElement) {
-    img.style.opacity = '0';
-    if (fallbackElement) {
-        fallbackElement.style.opacity = '1';
-    }
-}
-
-// Optimize performance for large galleries
-function lazyLoadGalleryImages() {
-    const galleryImages = document.querySelectorAll('.gallery-image');
-    
-    if ('IntersectionObserver' in window) {
-        const imageObserver = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target;
-                    if (img.dataset.src) {
-                        img.src = img.dataset.src;
-                        img.removeAttribute('data-src');
-                    }
-                    observer.unobserve(img);
-                }
-            });
-        }, {
-            rootMargin: '50px 0px',
-            threshold: 0.01
-        });
-
-        galleryImages.forEach(img => {
-            if (img.dataset.src) {
-                imageObserver.observe(img);
-            }
-        });
-    }
-}
-
-// Initialize lazy loading on DOM ready
-document.addEventListener('DOMContentLoaded', lazyLoadGalleryImages);
-
-// Configuration object for easy customization
-window.WeddingConfig = {
-    // Gallery images - Add your images here
-    galleryImages: [
-        'images/gallery/gallery-1.jpg',
-        'images/gallery/gallery-2.jpg',
-        'images/gallery/gallery-3.jpg',
-        'images/gallery/gallery-4.jpg',
-        'images/gallery/gallery-5.jpg',
-        'images/gallery/gallery-6.jpg',
-        'images/gallery/gallery-7.jpg',
-        'images/gallery/gallery-8.jpg',
-        'images/gallery/gallery-9.jpg'
-        // Add more images as needed
-    ],
-    
-    // Slider images - Add your slider images here
-    sliderImages: [
-        'images/gallery/slide-1.jpg',
-        'images/gallery/slide-2.jpg',
-        'images/gallery/slide-3.jpg',
-        'images/gallery/slide-4.jpg',
-        'images/gallery/slide-5.jpg',
-        'images/gallery/slide-6.jpg'
-    ],
-    
-    // Couple photos
-    bridePhoto: 'images/bride.jpg',
-    groomPhoto: 'images/groom.jpg',
-    
-    // Map links - Update with your actual Google Maps links
-    ceremonyMapLink: 'https://maps.google.com/maps?q=St.+Catherine+Cathedral,+Jl.+Kebon+Sirih+No.+17,+Jakarta+Pusat',
-    receptionMapLink: 'https://maps.google.com/maps?q=The+Ritz-Carlton+Jakarta,+Jl.+DR.+Ide+Anak+Agung+Gde+Agung,+Jakarta+Selatan',
-    
-    // Wedding date
-    weddingDate: 'December 20, 2025 11:00:00'
-};
-
-// Apply configuration on load
-document.addEventListener('DOMContentLoaded', function() {
-    // Update map links
-    updateMapLinks(WeddingConfig.ceremonyMapLink, WeddingConfig.receptionMapLink);
-});
-
-// Export enhanced functions for global access
-window.WeddingInvitation = {
-    enterWebsite,
-    scrollToSection,
-    goToSlide,
-    prevSlide,
-    nextSlide: nextSlide,
-    openMobileNav,
-    closeMobileNav,
-    openLightbox,
-    closeLightbox,
-    lightboxNext,
-    lightboxPrev,
-    addGalleryImage,
-    updateMapLinks,
-    updateCouplePhoto
-};
-
-// Error handling for missing elements
-function safeElementOperation(elementId, operation) {
-    try {
-        const element = document.getElementById(elementId);
-        if (element && typeof operation === 'function') {
-            operation(element);
-        }
-    } catch (error) {
-        console.warn(`Error operating on element ${elementId}:`, error);
-    }
-}
-
-// Lazy loading for better performance
 function initLazyLoading() {
     const images = document.querySelectorAll('img[data-src]');
-    
-    if ('IntersectionObserver' in window) {
-        const imageObserver = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target;
-                    img.src = img.dataset.src;
-                    img.removeAttribute('data-src');
-                    observer.unobserve(img);
-                }
-            });
-        });
-
-        images.forEach(img => imageObserver.observe(img));
-    } else {
-        // Fallback for browsers without IntersectionObserver
+    if (!('IntersectionObserver' in window)) {
         images.forEach(img => {
             img.src = img.dataset.src;
             img.removeAttribute('data-src');
         });
+        return;
     }
-}
 
-// Performance optimization: Preload critical resources
-function preloadCriticalResources() {
-    const criticalResources = [
-        'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap',
-        'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css'
-    ];
-    
-    criticalResources.forEach(resource => {
-        const link = document.createElement('link');
-        link.rel = 'preload';
-        link.href = resource;
-        link.as = 'style';
-        document.head.appendChild(link);
+    const imageObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
+            const img = entry.target;
+            img.src = img.dataset.src;
+            img.removeAttribute('data-src');
+            observer.unobserve(img);
+        });
     });
+
+    images.forEach(img => imageObserver.observe(img));
 }
 
-// Initialize all functions when DOM is ready
-function initializeWebsite() {
-    preloadCriticalResources();
-    initLazyLoading();
-}
-
-// Clean up function for when page is unloaded
-window.addEventListener('beforeunload', function() {
-    // Clear intervals to prevent memory leaks
-    if (slideInterval) {
-        clearInterval(slideInterval);
-    }
-    if (countdownInterval) {
-        clearInterval(countdownInterval);
-    }
-});
-
-// Touch events for mobile gallery navigation
-let touchStartX = 0;
-let touchEndX = 0;
-
-function handleTouchStart(e) {
-    touchStartX = e.changedTouches[0].screenX;
-}
-
-function handleTouchEnd(e) {
-    touchEndX = e.changedTouches[0].screenX;
-    handleSwipe();
-}
-
-function handleSwipe() {
-    const swipeThreshold = 50;
-    const swipeDistance = touchStartX - touchEndX;
-    
-    if (Math.abs(swipeDistance) > swipeThreshold && totalSlides > 0) {
-        if (swipeDistance > 0) {
-            // Swipe left - next slide
-            goToSlide((currentSlideIndex + 1) % totalSlides);
-        } else {
-            // Swipe right - previous slide
-            goToSlide((currentSlideIndex - 1 + totalSlides) % totalSlides);
-        }
-    }
-}
-
-// Add touch events to gallery slider
-document.addEventListener('DOMContentLoaded', function() {
-    const gallerySlider = document.querySelector('.gallery-slider');
-    if (gallerySlider) {
-        gallerySlider.addEventListener('touchstart', handleTouchStart, { passive: true });
-        gallerySlider.addEventListener('touchend', handleTouchEnd, { passive: true });
-    }
-    
-    // Initialize website
-    initializeWebsite();
-});
-
-// Accessibility improvements
 function initAccessibility() {
-    // Add ARIA labels
-    const sliderDots = document.querySelectorAll('.slider-dot');
-    sliderDots.forEach((dot, index) => {
+    document.querySelectorAll('.slider-dot').forEach((dot, index) => {
         dot.setAttribute('aria-label', `Go to slide ${index + 1}`);
         dot.setAttribute('role', 'button');
         dot.setAttribute('tabindex', '0');
-        
-        // Keyboard support for dots
         dot.addEventListener('keydown', function(e) {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -775,8 +669,8 @@ function initAccessibility() {
             }
         });
     });
-    
-    // Add skip to content link
+
+    if (document.querySelector('.skip-link')) return;
     const skipLink = document.createElement('a');
     skipLink.href = '#couple';
     skipLink.textContent = 'Skip to content';
@@ -785,7 +679,7 @@ function initAccessibility() {
         position: absolute;
         top: -40px;
         left: 6px;
-        background: var(--primary-color);
+        background: #23201d;
         color: white;
         padding: 8px;
         text-decoration: none;
@@ -793,72 +687,75 @@ function initAccessibility() {
         z-index: 1000;
         transition: top 0.3s;
     `;
-    
     skipLink.addEventListener('focus', function() {
         this.style.top = '6px';
     });
-    
     skipLink.addEventListener('blur', function() {
         this.style.top = '-40px';
     });
-    
     document.body.insertBefore(skipLink, document.body.firstChild);
 }
 
-// Initialize accessibility features
-document.addEventListener('DOMContentLoaded', initAccessibility);
-
-// Service Worker registration for better caching (optional)
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js')
-            .then(function(registration) {
-                console.log('SW registered: ', registration);
-            })
-            .catch(function(registrationError) {
-                console.log('SW registration failed: ', registrationError);
-            });
-    });
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), wait);
+    };
 }
 
-// Analytics tracking (placeholder - replace with actual analytics)
-function trackEvent(eventName, eventData = {}) {
-    // Example: Google Analytics 4
-    if (typeof gtag !== 'undefined') {
-        gtag('event', eventName, eventData);
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeMobileNav();
+        closeLightbox();
     }
-    
-    // Example: Facebook Pixel
-    if (typeof fbq !== 'undefined') {
-        fbq('track', eventName, eventData);
-    }
-    
-    console.log('Event tracked:', eventName, eventData);
-}
 
-// Track user interactions
-document.addEventListener('click', function(e) {
-    const target = e.target;
-    
-    if (target.matches('.enter-button')) {
-        trackEvent('invitation_opened');
+    const lightbox = document.getElementById('lightbox');
+    if (lightbox?.classList.contains('show')) {
+        if (e.key === 'ArrowLeft') lightboxPrev();
+        if (e.key === 'ArrowRight') lightboxNext();
+        return;
     }
-    
-    if (target.matches('.nav-links a, .mobile-nav-links a')) {
-        trackEvent('navigation_click', { section: target.textContent });
-    }
-    
-    if (target.matches('.slider-dot, .gallery-item')) {
-        trackEvent('gallery_interaction');
+
+    if (e.key === 'ArrowLeft' && totalSlides > 0) prevSlide();
+    if (e.key === 'ArrowRight' && totalSlides > 0) nextSlide();
+});
+
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+        if (totalSlides > 0 && !slideInterval) slideInterval = setInterval(nextSlide, 4000);
+        if (!countdownInterval) startCountdown();
+        if (DATA.audio?.autoplay !== false && isPlaying) playWeddingMusic({ silent: true });
+    } else {
+        clearInterval(slideInterval);
+        slideInterval = null;
+        clearInterval(countdownInterval);
+        countdownInterval = null;
     }
 });
 
-// Export functions for global access if needed
+window.addEventListener('beforeunload', function() {
+    clearInterval(slideInterval);
+    clearInterval(countdownInterval);
+});
+
+document.addEventListener('DOMContentLoaded', initGalleryTouch);
+
 window.WeddingInvitation = {
     enterWebsite,
     scrollToSection,
     goToSlide,
+    prevSlide,
+    nextSlide,
     openMobileNav,
-    closeMobileNav
+    closeMobileNav,
+    openLightbox,
+    closeLightbox,
+    lightboxNext,
+    lightboxPrev,
+    addGalleryImage,
+    updateMapLinks,
+    updateCouplePhoto,
+    playWeddingMusic,
+    pauseWeddingMusic
 };
-
